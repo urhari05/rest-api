@@ -25,12 +25,33 @@ const server = http.createServer(function(req, res){
         buffer += decoder.write(data);
     });
 
+    
+
+
     req.on('end', function(){
         buffer += decoder.end();
 
-        // log the request
-        res.end('hello world\n');
-        console.log('Request received with payload', buffer);
+        //Choose the handler the request should go to, If not found should call notfound handler
+        const chosenHandler = typeof(routers[trimmedPath]) !== 'undefined' ? routers[trimmedPath] : handlers.notfound;
+        // construct data object to send to the handler
+        const data = {
+            trimmedPath,
+            queryStringObject,
+            method,
+            headers,
+            'payload': buffer
+        }
+
+        //route the request to handler specified in the router
+        chosenHandler(data,function(statuscode = 200, payload= {}){
+            const payloadString = JSON.stringify(payload);
+            //return the response
+            res.writeHead(statuscode);
+            res.end(payloadString);
+            // log the request
+            console.log('Returning this response', payloadString, statuscode);
+        });
+        
     });
 
 });
@@ -38,3 +59,22 @@ const server = http.createServer(function(req, res){
 server.listen(3001, function(){
     console.log('server is listening to port 3001 now');
 });
+
+//Define the handlers
+const handlers = {};
+
+//sample handler
+handlers.sample = function(data, callback){
+    //callback with http status code with payload object
+    callback(406, { 'name' : 'sample handler' });
+}
+
+// default handler
+handlers.notfound = function(data, callback) {
+    callback(404);
+}
+
+//Define the routers
+const routers = {
+    'sample': handlers.sample
+};
